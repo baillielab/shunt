@@ -240,7 +240,7 @@ def getvo2(abg1, abg2):
 	diffs={}
 	for v in range(100,710,10):
 		diffs[v] = abs(predict_from_shunt(abg1, v, abg2["fio2"])["newpao2"] - abg2["cao2"])
-	return sorted(iter(diffs.items()), key=lambda k_v: (k_v[1],k_v[0]), reverse=True)[0][0]
+	return sorted(iter(list(diffs.items())), key=lambda k_v: (k_v[1],k_v[0]), reverse=True)[0][0]
 
 def predict_from_aa(abg, newfio2):
 	newpAo2 = alvgas(newfio2, abg["paco2"])
@@ -293,9 +293,9 @@ def getinputs():  # detect the source of input variables automatically
 			'DPG':[float(form.getvalue("DPG")),form.getvalue("DPG_unit")],
 		}
 		# if we get this far, we must be online, so send headers
-		print "Access-Control-Allow-Origin: *"
-		print "Content-Type: text/plain;charset=utf-8"
-		print
+		print("Access-Control-Allow-Origin: *")
+		print("Content-Type: text/plain;charset=utf-8")
+		print()
 		# and activate error handling if required
 		debugging = False
 		if debugging:
