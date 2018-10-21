@@ -2,6 +2,10 @@
 # -*- coding: UTF-8 -*-
 # Authors: JK Baillie, A Bretherick
 
+'''
+Calculate effective shunt fraction AT STEADY STATE
+'''
+
 import numpy as np
 from math import *
 from scipy import optimize, integrate
@@ -218,7 +222,34 @@ def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, 
 	cvco2 = ((thisQ*caco2*10 + thisVO2 * thisRER)/thisQ)/10
 	actualOER = (cao2-cvo2)/cao2
 	qsqt = (cao2 - cco2) / (cvo2 - cco2)
+	# sanity checks
+	if False:
+		print ("p50", p50)
+		print ("cao2", cao2)
+		print ("pAo2", pAo2)
+		print ("cco2", cco2)
+		print ("caco2", caco2)
+		print ("DO2", DO2)
+		print ("thisVO2", thisVO2)
+		print ("cvo2", cvo2)
+		print ("cvco2", cvco2)
+		print ("actualOER", actualOER)
+		print ("qsqt", qsqt)
+	if cao2 > cco2:
+		return fail('cao2 > cco2')
+	elif qsqt < 0:
+		return fail('qsqt < 0')
+	elif qsqt > 1:
+		return fail('qsqt > 1')
 	return qsqt
+
+#mode = "verbose"
+mode = "quiet"
+def fail(message):
+	if mode=="verbose":
+		return "Failed {}".format(message)
+	elif mode=="quiet":
+		return -99
 
 #-------------------------------------
 def getinputs():  # detect the source of input variables automatically
