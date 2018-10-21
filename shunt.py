@@ -2,9 +2,9 @@
 # -*- coding: UTF-8 -*-
 # Authors: JK Baillie, A Bretherick
 
-
-import datetime
 import numpy as np
+from math import *
+from scipy import optimize, integrate
 
 # redefined in es function:
 Q = 5 # l/min
@@ -16,11 +16,6 @@ DPG = 0.00465 # assumed, doesn't make much difference anyway
 # constant throughout
 MCHC = 340
 
-#----------------------------------------------------------------------------
-#-------------------------------------§---------------------------------------
-from math import *
-from scipy import optimize, integrate
-#----------------------------------------------------------------------------
 #----------------------------------------------------------------------------
 # Name:		Input Constants
 #----------------------------------------------------------------------------
@@ -68,8 +63,6 @@ def calculateglobalvariables(current_temp, thisHb):
 	Hb = thisHb
 	Wbl = (1-Hct)*Wpl+Hct*Wrbc # fraction
 	Temp = current_temp
-
-
 
 #------------------------------------------------------------------------
 # Name:		 alpha O2 / CO2
@@ -132,14 +125,6 @@ def infer_p50(p1,s1):
 	'''Calculate O2 SATURATION from CONTENT''' # fraction
 	args = (p1, s1)
 	return optimize.brentq(SnO2_1_null,1e-3,12,args=args,rtol=0.000001)
-
-# test p50 inference:
-if False:
-	for p in range(1,15):
-		for inp in range(1,6):
-			s=SnO2_0(p,inp)
-			print("--- %s %s %s ----"%(inp, p,s))
-			print(infer_p50(p,s))
 
 #----------------------------------------------------------------------------
 # Name:		 Blood O2 content
@@ -224,8 +209,6 @@ def calculate_shunt(abg, thisVO2):
 	cvco2 = ((Q*abg["caco2"]*10 + thisVO2*RER)/Q)/10
 	OER = (abg["cao2"]-cvo2)/abg["cao2"]
 	qsqt = (abg["cao2"] - abg["cco2"]) / (cvo2 - abg["cco2"])
-	if qsqt<0:
-		print("shunt less than zero:", abg["cco2"], abg["cao2"], cvo2)
 	return cvo2, cvco2, OER, qsqt, thisVO2
 
 def predict_from_shunt(abg, thisVO2, newfio2, newpaco2, newp50):
@@ -277,7 +260,6 @@ def predict_from_pa(abg, newfio2):
 
 
 #-------------------------------------
-
 def es(fio2, pao2, paco2, pH, Hb=8, tempC=36.5, thisVO2=250, thisQ=5, thismaxOER=0.8, thisRER=0.8, thisDPG=0.00465):
 	''' standalone function to calculate effective shunt from ABG '''
 	''' inputs are in kPa pH g/dl Celsius l/min mlo2/min'''
@@ -296,14 +278,113 @@ def es(fio2, pao2, paco2, pH, Hb=8, tempC=36.5, thisVO2=250, thisQ=5, thismaxOER
 	qsqt = (cao2 - cco2) / (cvo2 - cco2)
 	return qsqt
 
+#-------------------------------------
+def getinputs():  # detect the source of input variables automatically
+	try:
+		form = cgi.FieldStorage()
+		variables =  {
+			'fio2':[float(form.getvalue("fio2")),'%'],
+			'Hb':[float(form.getvalue("Hb")),form.getvalue("Hb_unit")],
+			'Temp':[float(form.getvalue("Temp")),form.getvalue("Temp_unit")],
+			'VO2':[float(form.getvalue("VO2")),'ml/min'],
+			'Q':[float(form.getvalue("Q")),form.getvalue("Q_unit")],
+			'maxOER':[float(form.getvalue("MaxOER")),'fraction'],
+			'RER':[float(form.getvalue("RER")),'fraction'],
+			'DPG':[float(form.getvalue("DPG")),form.getvalue("DPG_unit")],
+		}
+		# if we get this far, we must be online, so send headers
+		print "Access-Control-Allow-Origin: *"
+		print "Content-Type: text/plain;charset=utf-8"
+		print
+		# and activate error handling if required
+		debugging = False
+		if debugging:
+			import cgitb
+			cgitb.enable()
+	except:
+		import traceback
+		import argparse
+		parser = argparse.ArgumentParser()
+		parser.add_argument('-fio2',			default=0.21,		type=float,	help='fraction')
+		parser.add_argument('-Hb',				default=150,		type=float,	help='g/l')
+		parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='K') # 36.5 C = 309.65 K
+		parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
+		parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min')
+		parser.add_argument('-maxOER',			default=0.8,		type=float,	help='fraction')
+		parser.add_argument('-DPG',				default=0.00465,	type=float,	help='M')
+		parser.add_argument('-RER',				default=0.8,		type=float,	help='fraction')
+		parser.set_defaults()
+		args = parser.parse_args()
+		variables = vars(args)
+	return variables
 
 
-
-
-
-
-
-
+def setunits(value,unit):
+	# Mass
+	if unit == 'kg':
+		return value
+	elif unit == 'stone':
+		return value*6.35029318
+	elif unit == 'lb':
+		return value*0.45359237
+	# Length
+	elif unit == 'm':
+		return value
+	elif unit == 'feet':
+		return value*0.3048
+	elif unit == 'ft':
+		return value*0.3048
+	# Temperature
+	elif unit == 'deg C':
+		return value+273.15
+	elif unit == 'deg F':
+		return (5*(value-32)*9**-1)+273.15
+	elif unit =='K':
+		return value
+	# Concentration
+	elif unit == 'mmol/l':
+		return value*1e-3
+	elif unit == 'mol/l':
+		return value
+	elif unit == 'mEq/l':
+		return value*1e-3
+	elif unit == 'Eq/l':
+		return value
+	# Haemoglobin
+	elif unit == 'g/dl':
+		return value*10
+	elif unit == 'g/l':
+		return value
+	# Unitless
+	elif unit == 'fraction':
+		return value
+	elif unit == '%':
+		return value*1e-2
+	elif unit == 'unitless':
+		return value
+	# Volume
+	elif unit == 'ml':
+		return value*1e-3
+	elif unit =='l':
+		return value
+	# Rate
+	elif unit == 'l/min':
+		return value
+	elif unit == 'ml/min':
+		return value*10**-3
+	elif unit == 'bpm':
+		return value
+	elif unit == 'mlO2/min/kPa':
+		return value
+	# Error
+	else:
+		return 'Unit conversion error'
+#-------------------------------------
+if __name__ == "__main__":
+	import cgi
+	import argparse
+	inputs = getinputs()
+	print (inputs)
 
 
 
