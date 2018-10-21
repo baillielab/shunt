@@ -8,7 +8,7 @@ from scipy import optimize, integrate
 
 # redefined in es function:
 Q = 5 # l/min
-VO2 = 250 # mlO2/min
+VO2 = 0.25 # l/min
 maxOER = 0.8
 RER = 0.8
 DPG = 0.00465 # assumed, doesn't make much difference anyway
@@ -202,69 +202,11 @@ def alvgas(f, c, r=RER):
 	ag = f*95.05885 - c/r + f*c*(1-r)/r
 	return max(ag, 0.5)
 
-def calculate_shunt(abg, thisVO2):
-	DO2= Q*abg["cao2"]*10
-	thisVO2 = min(thisVO2, DO2*maxOER) 
-	cvo2 = ((DO2-thisVO2)/Q)/10
-	cvco2 = ((Q*abg["caco2"]*10 + thisVO2*RER)/Q)/10
-	OER = (abg["cao2"]-cvo2)/abg["cao2"]
-	qsqt = (abg["cao2"] - abg["cco2"]) / (cvo2 - abg["cco2"])
-	return cvo2, cvco2, OER, qsqt, thisVO2
-
-def predict_from_shunt(abg, thisVO2, newfio2, newpaco2, newp50):
-	# ? should include new CO2, new Hb, new p50
-	cvo2, cvco2, OER, qsqt, thisVO2	= calculate_shunt(abg, thisVO2)
-	Qt = Q 
-	Qs = Q * qsqt  #mls/min
-	newpAo2 = alvgas(newfio2, newpaco2) # could possibly correct for p50 in capillaries
-	calculateglobalvariables(abg["Temp"], abg["Hb"])
-	newcco2 = CnO2_0(newpAo2, newp50)
-	newcao2 = newcco2 - (abg["cco2"]-abg["cao2"])
-	newpao2 = PnO2_2(newcao2, newp50)
-	expected_error = -1.84*(abg["fio2"]- newfio2)+0.26
-	outdic = {
-		"adiff": abs (abg["cao2"] - newcao2),
-		"s_newcao2": newcao2,
-		"s_newpao2": newpao2,
-		"sc_newpao2": newpao2-expected_error,
-		"cvo2": cvo2,
-		"cvco2": cvco2,
-		"OER": OER,
-		"qsqt": qsqt,
-		"Qs": Qs,
-		"Qt": Qt,
-		}
-	return outdic
-
-def getvo2(abg1, abg2):
-	diffs={}
-	for v in range(100,710,10):
-		diffs[v] = abs(predict_from_shunt(abg1, v, abg2["fio2"])["newpao2"] - abg2["cao2"])
-	return sorted(iter(list(diffs.items())), key=lambda k_v: (k_v[1],k_v[0]), reverse=True)[0][0]
-
-def predict_from_aa(abg, newfio2):
-	newpAo2 = alvgas(newfio2, abg["paco2"])
-	return newpAo2 - abg["Aa"]
-
-def predict_from_pf(abg, newfio2):
-	return newfio2 * abg["PF"]
-
-def predict_from_pf_corrected(abg, newfio2):
-	prediction = newfio2 * abg["PF"]
-	expected_error = -5.6*(abg["fio2"]-newfio2)-0.07
-	return prediction - expected_error
-
-def predict_from_pa(abg, newfio2):
-	newpAo2 = alvgas(newfio2, abg["paco2"])
-	return newpAo2 * abg["PA"]
-
-
-#-------------------------------------
-def es(fio2, pao2, paco2, pH, Hb=8, tempC=36.5, thisVO2=250, thisQ=5, thismaxOER=0.8, thisRER=0.8, thisDPG=0.00465):
+def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, thismaxOER=0.8, thisRER=0.8, thisDPG=0.00465):
 	''' standalone function to calculate effective shunt from ABG '''
-	''' inputs are in kPa pH g/dl Celsius l/min mlo2/min'''
-	thisTemp = tempC + 273.15
-	calculateglobalvariables(thisTemp, Hb)
+	''' inputs are in kPa pH g/dl Celsius l/min lo2/min'''
+	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
+	calculateglobalvariables(thisTemp, thisHb)
 	p50 = P50(pH, paco2, thisDPG, thisTemp)
 	cao2 = CnO2_0(pao2, p50)
 	pAo2 = alvgas(fio2,paco2,thisRER)
@@ -282,8 +224,12 @@ def es(fio2, pao2, paco2, pH, Hb=8, tempC=36.5, thisVO2=250, thisQ=5, thismaxOER
 def getinputs():  # detect the source of input variables automatically
 	try:
 		form = cgi.FieldStorage()
-		variables =  {
+		online_inputs =  {
 			'fio2':[float(form.getvalue("fio2")),'%'],
+			'pao2':[float(form.getvalue("pao2")),form.getvalue("pao2_unit")],
+			'paco2':[float(form.getvalue("paco2")),form.getvalue("paco2_unit")],
+			'pH':[float(form.getvalue("pH")),'pH'],
+			#-----
 			'Hb':[float(form.getvalue("Hb")),form.getvalue("Hb_unit")],
 			'Temp':[float(form.getvalue("Temp")),form.getvalue("Temp_unit")],
 			'VO2':[float(form.getvalue("VO2")),'ml/min'],
@@ -292,10 +238,11 @@ def getinputs():  # detect the source of input variables automatically
 			'RER':[float(form.getvalue("RER")),'fraction'],
 			'DPG':[float(form.getvalue("DPG")),form.getvalue("DPG_unit")],
 		}
+		variables = {k:online_inputs[k][0] for k in online_inputs} # ditch units for now
 		# if we get this far, we must be online, so send headers
 		print("Access-Control-Allow-Origin: *")
 		print("Content-Type: text/plain;charset=utf-8")
-		print()
+		print
 		# and activate error handling if required
 		debugging = False
 		if debugging:
@@ -306,7 +253,11 @@ def getinputs():  # detect the source of input variables automatically
 		import argparse
 		parser = argparse.ArgumentParser()
 		parser.add_argument('-fio2',			default=0.21,		type=float,	help='fraction')
-		parser.add_argument('-Hb',				default=150,		type=float,	help='g/l')
+		parser.add_argument('-pao2',			default=13.3,		type=float,	help='kPa')
+		parser.add_argument('-paco2',			default=5.3,		type=float,	help='kPa')
+		parser.add_argument('-pH',				default=7.4,		type=float,	help='pH')
+		#-----
+		parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
 		parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='K') # 36.5 C = 309.65 K
 		parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
 		parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min')
@@ -384,7 +335,20 @@ if __name__ == "__main__":
 	import cgi
 	import argparse
 	inputs = getinputs()
-	print (inputs)
+	shunt = es(
+		fio2 = inputs['fio2'],
+		pao2 = inputs['pao2'],
+		paco2 = inputs['paco2'],
+		pH = inputs['pH'],
+		thisHb = inputs['Hb'],
+		thisTemp = inputs['Temp'],
+		thisVO2 = inputs['VO2'],
+		thisQ = inputs['Q'],
+		thismaxOER = inputs['maxOER'],
+		thisRER = inputs['RER'],
+		thisDPG = inputs['DPG'],
+		)
+	print (shunt)
 
 
 
