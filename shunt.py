@@ -206,7 +206,7 @@ def alvgas(f, c, r=RER):
 	ag = f*95.05885 - c/r + f*c*(1-r)/r
 	return max(ag, 0.5)
 
-def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, thismaxOER=0.8, thisRER=0.8, thisDPG=0.00465):
+def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, thismaxOER=0.8, thisRER=0.8, thisDPG=0.00465, mode="quiet"):
 	''' standalone function to calculate effective shunt from ABG '''
 	''' inputs are in kPa pH g/dl Celsius l/min lo2/min'''
 	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
@@ -235,21 +235,19 @@ def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, 
 		print ("cvco2", cvco2)
 		print ("actualOER", actualOER)
 		print ("qsqt", qsqt)
-	if cao2 > cco2:
-		return fail('cao2 > cco2')
+	if cao2 > cco2+0.1:
+		return fail('cao2 > cco2', mode=mode)
 	elif qsqt < 0:
-		return fail('qsqt < 0')
+		return fail('qsqt < 0', mode=mode)
 	elif qsqt > 1:
-		return fail('qsqt > 1')
+		return fail('qsqt > 1', mode=mode)
 	return qsqt
 
-#mode = "verbose"
-mode = "quiet"
-def fail(message):
+def fail(message, mode="quiet"):
 	if mode=="verbose":
 		return "Failed {}".format(message)
 	elif mode=="quiet":
-		return -99
+		return np.nan
 
 #-------------------------------------
 def getinputs():  # detect the source of input variables automatically
