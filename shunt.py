@@ -290,24 +290,10 @@ def get_online_inputs(thesevars):  # detect the source of input variables automa
 			online = True 
 		except:
 			onlinevars[v] = thesevars[v] # default value
-
-	'''
-	#-----
-	'Hb':[float(form.getvalue("Hb")),form.getvalue("Hb_unit")],
-	'Temp':[float(form.getvalue("Temp")),form.getvalue("Temp_unit")],
-	'VO2':[float(form.getvalue("VO2")),'ml/min'],
-	'Q':[float(form.getvalue("Q")),form.getvalue("Q_unit")],
-	'maxOER':[float(form.getvalue("MaxOER")),'fraction'],
-	'RER':[float(form.getvalue("RER")),'fraction'],
-	'DPG':[float(form.getvalue("DPG")),form.getvalue("DPG_unit")],
-	'''
 	if online:
 		print ("Access-Control-Allow-Origin: *")
 		print ("Content-Type: text/plain;charset=utf-8")
 		print
-
-	#print (online_inputs)
-	#variables = {k:setunits(online_inputs[k][0], online_inputs[k][1]) for k in online_inputs}
 	return onlinevars
 	
 def getinputs():
@@ -392,7 +378,7 @@ if __name__ == "__main__":
 	import cgi
 	import argparse
 	inputs = getinputs()
-	print (inputs)
+	#print (inputs)
 	shunt = es(
 		fio2 = inputs['fio2'],
 		pao2 = inputs['pao2'],
