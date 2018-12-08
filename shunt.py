@@ -6,8 +6,8 @@
 Calculate effective shunt fraction AT STEADY STATE
 '''
 
-import numpy as np
 from math import *
+import numpy as np
 from scipy import optimize, integrate
 
 # redefined in es function:
@@ -253,11 +253,13 @@ def fail(message, mode="quiet"):
 def getinputs():  # detect the source of input variables automatically
 	try:
 		form = cgi.FieldStorage()
+		gasunit = form.getvalue("gasunit")
+		acidunit = form.getvalue("acidunit")
 		online_inputs =  {
-			'fio2':[float(form.getvalue("fio2")),'%'],
-			'pao2':[float(form.getvalue("pao2")),form.getvalue("pao2_unit")],
-			'paco2':[float(form.getvalue("paco2")),form.getvalue("paco2_unit")],
-			'pH':[float(form.getvalue("pH")),'pH'],
+			'fio2':[float(form.getvalue("fio2")),'fraction'],
+			'pao2':[float(form.getvalue("pao2")),gasunit],
+			'paco2':[float(form.getvalue("paco2")),gasunit],
+			'pH':[float(form.getvalue("pH")),acidunit],
 			#-----
 			'Hb':[float(form.getvalue("Hb")),form.getvalue("Hb_unit")],
 			'Temp':[float(form.getvalue("Temp")),form.getvalue("Temp_unit")],
@@ -267,7 +269,7 @@ def getinputs():  # detect the source of input variables automatically
 			'RER':[float(form.getvalue("RER")),'fraction'],
 			'DPG':[float(form.getvalue("DPG")),form.getvalue("DPG_unit")],
 		}
-		variables = {k:online_inputs[k][0] for k in online_inputs} # ditch units for now
+		variables = {k:setunits(online_inputs[k][0], online_inputs[k][1]) for k in online_inputs}
 		# if we get this far, we must be online, so send headers
 		print("Access-Control-Allow-Origin: *")
 		print("Content-Type: text/plain;charset=utf-8")
@@ -356,9 +358,16 @@ def setunits(value,unit):
 		return value
 	elif unit == 'mlO2/min/kPa':
 		return value
+	# Percentages
+	elif unit == "%":
+		return float(value)/100
+	elif unit == "percentage":
+		return float(value)/100
+	elif unit == "fraction":
+		return value
 	# Error
 	else:
-		return 'Unit conversion error'
+		return 'Unit conversion error - unit not recognised'
 #-------------------------------------
 if __name__ == "__main__":
 	import cgi
