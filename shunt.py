@@ -1,10 +1,10 @@
-#!/opt/local/bin/python
+#!/usr/bin/python
 # -*- coding: UTF-8 -*-
-# Authors: JK Baillie, A Bretherick
 
-'''
-Calculate effective shunt fraction AT STEADY STATE
-'''
+
+import cgitb, string, math, cgi
+
+#-##############--------------------------------------------------
 
 from math import *
 import numpy as np
@@ -250,54 +250,72 @@ def fail(message, mode="quiet"):
 		return np.nan
 
 #-------------------------------------
-def getinputs():  # detect the source of input variables automatically
-	try:
-		form = cgi.FieldStorage()
-		gasunit = form.getvalue("gasunit")
-		acidunit = form.getvalue("acidunit")
-		online_inputs =  {
-			'fio2':[float(form.getvalue("fio2")),'fraction'],
-			'pao2':[float(form.getvalue("pao2")),gasunit],
-			'paco2':[float(form.getvalue("paco2")),gasunit],
-			'pH':[float(form.getvalue("pH")),acidunit],
-			#-----
-			'Hb':[float(form.getvalue("Hb")),form.getvalue("Hb_unit")],
-			'Temp':[float(form.getvalue("Temp")),form.getvalue("Temp_unit")],
-			'VO2':[float(form.getvalue("VO2")),'ml/min'],
-			'Q':[float(form.getvalue("Q")),form.getvalue("Q_unit")],
-			'maxOER':[float(form.getvalue("MaxOER")),'fraction'],
-			'RER':[float(form.getvalue("RER")),'fraction'],
-			'DPG':[float(form.getvalue("DPG")),form.getvalue("DPG_unit")],
-		}
-		variables = {k:setunits(online_inputs[k][0], online_inputs[k][1]) for k in online_inputs}
-		# if we get this far, we must be online, so send headers
-		print("Access-Control-Allow-Origin: *")
-		print("Content-Type: text/plain;charset=utf-8")
+def get_local_inputs():
+	import traceback
+	import argparse
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-fio2',			default=0.21,		type=float,	help='fraction')
+	parser.add_argument('-pao2',			default=13.3,		type=float,	help='kPa')
+	parser.add_argument('-paco2',			default=5.3,		type=float,	help='kPa')
+	parser.add_argument('-pH',				default=7.4,		type=float,	help='pH')
+	#-----
+	parser.add_argument('-gasunit',			default='kPa',		type=str, 	help='kPa or mmHg')
+	parser.add_argument('-acidunit',		default='pH',		help='pH or H')
+	#-----
+	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
+	parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='K') # 36.5 C = 309.65 K
+	parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
+	parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min')
+	parser.add_argument('-maxOER',			default=0.8,		type=float,	help='fraction')
+	parser.add_argument('-DPG',				default=0.00465,	type=float,	help='M')
+	parser.add_argument('-RER',				default=0.8,		type=float,	help='fraction')
+	parser.set_defaults()
+	args = parser.parse_args()
+	localvars = vars(args)
+	return localvars
+
+
+def get_online_inputs(thesevars):  # detect the source of input variables automatically
+	form = cgi.FieldStorage()
+	onlinevars = {}
+	online = False
+	for v in thesevars:
+		try:
+			float(thesevars[v])
+		except: 
+			onlinevars[v] = form.getvalue(v)
+			continue # this doesn't have to be a float. all others must be floatable.
+		try:
+			onlinevars[v] = float(form.getvalue(v))
+			online = True 
+		except:
+			onlinevars[v] = thesevars[v] # default value
+
+	'''
+	#-----
+	'Hb':[float(form.getvalue("Hb")),form.getvalue("Hb_unit")],
+	'Temp':[float(form.getvalue("Temp")),form.getvalue("Temp_unit")],
+	'VO2':[float(form.getvalue("VO2")),'ml/min'],
+	'Q':[float(form.getvalue("Q")),form.getvalue("Q_unit")],
+	'maxOER':[float(form.getvalue("MaxOER")),'fraction'],
+	'RER':[float(form.getvalue("RER")),'fraction'],
+	'DPG':[float(form.getvalue("DPG")),form.getvalue("DPG_unit")],
+	'''
+	if online:
+		print ("Access-Control-Allow-Origin: *")
+		print ("Content-Type: text/plain;charset=utf-8")
 		print
-		# and activate error handling if required
-		debugging = False
-		if debugging:
-			import cgitb
-			cgitb.enable()
+
+	#print (online_inputs)
+	#variables = {k:setunits(online_inputs[k][0], online_inputs[k][1]) for k in online_inputs}
+	return onlinevars
+	
+def getinputs():
+	variables = get_local_inputs()
+	try:
+		variables = get_online_inputs(variables)
 	except:
-		import traceback
-		import argparse
-		parser = argparse.ArgumentParser()
-		parser.add_argument('-fio2',			default=0.21,		type=float,	help='fraction')
-		parser.add_argument('-pao2',			default=13.3,		type=float,	help='kPa')
-		parser.add_argument('-paco2',			default=5.3,		type=float,	help='kPa')
-		parser.add_argument('-pH',				default=7.4,		type=float,	help='pH')
-		#-----
-		parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
-		parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='K') # 36.5 C = 309.65 K
-		parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
-		parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min')
-		parser.add_argument('-maxOER',			default=0.8,		type=float,	help='fraction')
-		parser.add_argument('-DPG',				default=0.00465,	type=float,	help='M')
-		parser.add_argument('-RER',				default=0.8,		type=float,	help='fraction')
-		parser.set_defaults()
-		args = parser.parse_args()
-		variables = vars(args)
+		pass
 	return variables
 
 
@@ -368,11 +386,13 @@ def setunits(value,unit):
 	# Error
 	else:
 		return 'Unit conversion error - unit not recognised'
+
 #-------------------------------------
 if __name__ == "__main__":
 	import cgi
 	import argparse
 	inputs = getinputs()
+	print (inputs)
 	shunt = es(
 		fio2 = inputs['fio2'],
 		pao2 = inputs['pao2'],
@@ -387,6 +407,8 @@ if __name__ == "__main__":
 		thisDPG = inputs['DPG'],
 		)
 	print (shunt)
+
+
 
 
 
