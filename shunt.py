@@ -1,11 +1,14 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
-
-import cgitb, string, math, cgi
-
-#-##############--------------------------------------------------
-
+#----------------------------------------------------------------------------
+# AUTHORS: J.K. Baillie and A Bretherick
+# LICENSE: CC-BY-NC
+# GUARANTEE: This code is provided as is and has no guarantee.
+version = 'v0.3' # this is a variable so that it can be returned by -getversion. It should be a string so that it doesn't get confused with an es result.
+#----------------------------------------------------------------------------
+import cgi
+import cgitb
 from math import *
 import numpy as np
 from scipy import optimize, integrate
@@ -20,6 +23,7 @@ DPG = 0.00465 # assumed, doesn't make much difference anyway
 # constant throughout
 MCHC = 340
 
+accesscontrol = "Access-Control-Allow-Origin: *" # control access to this script for online use
 #----------------------------------------------------------------------------
 # Name:		Input Constants
 #----------------------------------------------------------------------------
@@ -258,7 +262,9 @@ def get_local_inputs():
 	parser.add_argument('-pao2',			default=13.3,		type=float,	help='kPa')
 	parser.add_argument('-paco2',			default=5.3,		type=float,	help='kPa')
 	parser.add_argument('-pH',				default=7.4,		type=float,	help='pH')
-	parser.add_argument('-gasunit',			default='kPa',		type=str, 	help='kPa or mmHg')
+	parser.add_argument('-gasunit',			default='kPa',		type=str, 	help='kPa or mmHg', choices=['kPa','mmHg'])
+	parser.add_argument('-getversion',		default='no',		type=str, 	help='yes or no', choices=['yes','no'])
+	parser.add_argument('-online',			default='no',		type=str, 	help='yes or no', choices=['yes','no'])
 	#-----
 	#below are not yet fully operational - units are not checked
 	parser.add_argument('-acidunit',		default='pH',		help='pH or H')
@@ -277,30 +283,31 @@ def get_local_inputs():
 def get_online_inputs(thesevars):  # detect the source of input variables automatically
 	form = cgi.FieldStorage()
 	onlinevars = {}
-	online = False
 	for v in thesevars:
 		try:
-			float(thesevars[v])
+			float(thesevars[v]) # if this fails, this one doesn't have to be a float.
 		except: 
-			onlinevars[v] = form.getvalue(v)
-			continue # this doesn't have to be a float. all others must be floatable.
+			newvar = form.getvalue(v)
+			if newvar is not None:
+				onlinevars[v] = newvar
+				continue 
+			else:
+				onlinevars[v] = thesevars[v] # default value
 		try:
 			onlinevars[v] = float(form.getvalue(v))
-			online = True 
 		except:
 			onlinevars[v] = thesevars[v] # default value
-	if online:
-		print ("Access-Control-Allow-Origin: *")
+	if onlinevars['online']=='yes':
+		print (accesscontrol)
 		print ("Content-Type: text/plain;charset=utf-8")
 		print
 	return onlinevars
 	
 def getinputs():
 	variables = get_local_inputs()
-	try:
-		variables = get_online_inputs(variables)
-	except:
-		pass
+	v =  get_online_inputs(variables)
+	if v['online']=='yes':
+		variables = v
 	if variables['gasunit'] != 'kPa':
 		for gasmeasure in ['pao2', 'paco2']:
 			variables[gasmeasure] = setunits(variables[gasmeasure], variables['gasunit'])
@@ -377,30 +384,30 @@ def setunits(value,unit):
 		return value
 	# Error
 	else:
-		print ('Unit conversion error - unit not recognised')
+		print ('Unit conversion error - unit not recognised. Value: {} Unit: {}'.format(value, unit))
 
 #-------------------------------------
 if __name__ == "__main__":
 	import cgi
 	import argparse
 	inputs = getinputs()
-	#print (inputs)
-	shunt = es(
-		fio2 = inputs['fio2'],
-		pao2 = inputs['pao2'],
-		paco2 = inputs['paco2'],
-		pH = inputs['pH'],
-		thisHb = inputs['Hb'],
-		thisTemp = inputs['Temp'],
-		thisVO2 = inputs['VO2'],
-		thisQ = inputs['Q'],
-		thismaxOER = inputs['maxOER'],
-		thisRER = inputs['RER'],
-		thisDPG = inputs['DPG'],
-		)
-	print (shunt)
-
-
+	if inputs['getversion']=='yes':
+		print (version)
+	else:
+		shunt = es(
+			fio2 = inputs['fio2'],
+			pao2 = inputs['pao2'],
+			paco2 = inputs['paco2'],
+			pH = inputs['pH'],
+			thisHb = inputs['Hb'],
+			thisTemp = inputs['Temp'],
+			thisVO2 = inputs['VO2'],
+			thisQ = inputs['Q'],
+			thismaxOER = inputs['maxOER'],
+			thisRER = inputs['RER'],
+			thisDPG = inputs['DPG'],
+			)
+		print (shunt)
 
 
 
