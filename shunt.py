@@ -258,10 +258,10 @@ def get_local_inputs():
 	parser.add_argument('-pao2',			default=13.3,		type=float,	help='kPa')
 	parser.add_argument('-paco2',			default=5.3,		type=float,	help='kPa')
 	parser.add_argument('-pH',				default=7.4,		type=float,	help='pH')
-	#-----
 	parser.add_argument('-gasunit',			default='kPa',		type=str, 	help='kPa or mmHg')
-	parser.add_argument('-acidunit',		default='pH',		help='pH or H')
 	#-----
+	#below are not yet fully operational - units are not checked
+	parser.add_argument('-acidunit',		default='pH',		help='pH or H')
 	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
 	parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='K') # 36.5 C = 309.65 K
 	parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
@@ -273,7 +273,6 @@ def get_local_inputs():
 	args = parser.parse_args()
 	localvars = vars(args)
 	return localvars
-
 
 def get_online_inputs(thesevars):  # detect the source of input variables automatically
 	form = cgi.FieldStorage()
@@ -302,8 +301,10 @@ def getinputs():
 		variables = get_online_inputs(variables)
 	except:
 		pass
+	if variables['gasunit'] != 'kPa':
+		for gasmeasure in ['pao2', 'paco2']:
+			variables[gasmeasure] = setunits(variables[gasmeasure], variables['gasunit'])
 	return variables
-
 
 def setunits(value,unit):
 	# Mass
@@ -369,9 +370,14 @@ def setunits(value,unit):
 		return float(value)/100
 	elif unit == "fraction":
 		return value
+	# pressure
+	elif unit == "mmHg":
+		return value*101.325/760
+	elif unit == "kPa":
+		return value
 	# Error
 	else:
-		return 'Unit conversion error - unit not recognised'
+		print ('Unit conversion error - unit not recognised')
 
 #-------------------------------------
 if __name__ == "__main__":
