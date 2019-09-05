@@ -2,10 +2,10 @@
 # -*- coding: UTF-8 -*-
 
 #----------------------------------------------------------------------------
-# AUTHORS: J.K. Baillie and A Bretherick
+# AUTHORS: J.K. Baillie and A Bretherick
 # LICENSE: CC-BY-NC
-# GUARANTEE: This code is provided as is and has no guarantee.
-version = 'v0.3' # this is a variable so that it can be returned by -getversion. It should be a string so that it doesn't get confused with an es result.
+# GUARANTEE: This code is provided as is and has no guarantee.
+version = 'v0.31' # this is a variable so that it can be returned by -getversion. It should be a string prefixed by 'v' so that it doesn't get confused with an es result.
 #----------------------------------------------------------------------------
 import cgi
 import cgitb
@@ -15,10 +15,10 @@ from scipy import optimize, integrate
 
 # redefined in es function:
 Q = 5 # l/min
-VO2 = 0.25 # l/min
+VO2 = 0.25 # l/min
 maxOER = 0.8
 RER = 0.8
-DPG = 0.00465 # assumed, doesn't make much difference anyway
+DPG = 0.00465 # assumed, doesn't make much difference anyway
 
 # constant throughout
 MCHC = 340
@@ -108,12 +108,7 @@ def P50(pH, PnCO2, DPG, Temp):
 #----------------------------------------------------------------------------
 def SnO2_0(PnO2, p50_SnO2):
 	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
-	return ((PnO2*p50_SnO2**-1)**(1+n0))/\
-		(1+((PnO2*p50_SnO2**-1)**(1+n0)))	
-def SnO2_1(PnO2, pH, PnCO2, DPG, Temp): # Equation B.3
-	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
-	return ((PnO2*P50(pH, PnCO2, DPG, Temp)**-1)**(1+n0))/\
-		(1+((PnO2*P50(pH, PnCO2, DPG, Temp)**-1)**(1+n0)))
+	return ((PnO2*p50_SnO2**-1)**(1+n0))/(1+((PnO2*p50_SnO2**-1)**(1+n0)))	
 def SnO2_2_null(Sats, CnO2, p50_SnO2):
 	'''returns 0 '''
 	return Wbl*alphaO2*p50_SnO2*(Sats*(1-Sats)**-1)**((1+n0)**-1) + \
@@ -140,16 +135,9 @@ def infer_p50(p1,s1):
 #----------------------------------------------------------------------------
 def CnO2_0(PnO2, p50_CnO2):
 	'''Calculate O2 CONTENT from PARTIAL PRESSURE'''
-	return (Wbl*p50_CnO2*(SnO2_0(PnO2, p50_CnO2)*(1\
-	-SnO2_0(PnO2, p50_CnO2))**-1)**((1+n0)**-1)*alphaO2\
-	+4*HbMol*SnO2_0(PnO2, p50_CnO2))*(R*STP_T*STP_P**-1*1e2)
-	# ml of O2 per 100ml blood STP
-def CnO2_1(PnO2, pH, PnCO2, DPG, Temp):
-	'''Calculate O2 CONTENT from PARTIAL PRESSURE'''
-	return (Wbl*P50(pH,PnCO2,DPG,Temp)*(SnO2_1(PnO2,pH,PnCO2,DPG,Temp)*(1\
-	-SnO2_1(PnO2,pH,PnCO2,DPG,Temp))**-1)**((1+n0)**-1)*alphaO2\
-	+4*HbMol*SnO2_1(PnO2,pH,PnCO2,DPG,Temp))*(R*STP_T*STP_P**-1*1e2)
-	# ml of O2 per 100ml blood STP
+	SnO2 = SnO2_0(PnO2, p50_CnO2)
+	return (Wbl*p50_CnO2*(SnO2*(1-SnO2)**-1)**((1+n0)**-1)*alphaO2+4*HbMol*SnO2)*(R*STP_T*STP_P**-1*1e2) * 10
+	# ml of O2 per litre blood STP
 #----------------------------------------------------------------------------
 # Name:		 Blood O2 partial pressure
 # Source:	   Dash & Bassingthwaight 2010
@@ -157,7 +145,7 @@ def CnO2_1(PnO2, pH, PnCO2, DPG, Temp):
 def PnO2_1(SnO2, p50_SnO2):
 	'''Calculate O2 PARTIAL PRESSURE from SATURATION'''
 	return p50_SnO2*(SnO2*(1-SnO2)**-1)**(((1+n0))**-1) # kPa
-def PnO2_2(CnO2,p50_SnO2):
+def PnO2_2(CnO2, p50_SnO2):
 	'''Calculate O2 PARTIAL PRESSURE from CONTENT'''
 	SnO2 = SnO2_2(CnO2, p50_SnO2)
 	return p50_SnO2*(SnO2*(1-SnO2)**-1)**(((1+n0))**-1) # kPa
@@ -192,7 +180,7 @@ def CnCO2_HbBound(PnCO2, PnO2, pH):
 def CnCO2_1(pH, PnCO2, PnO2):
 	'''Calculate CO2 CONTENT from PARTIAL PRESSURE'''
 	return (CnCO2_HbBound(PnCO2,PnO2,pH)+CnCO2_Bicarb(pH,PnCO2)\
-		+CnCO2_Dissolved(PnCO2))*(R*STP_T*STP_P**-1*1e2) # ml CO2 per 100ml blood STP
+		+CnCO2_Dissolved(PnCO2))*(R*STP_T*STP_P**-1*1e2) * 10 # ml CO2 per litre blood STP
 def PnCO2_null(PnCO2, CnCO2, pH, CnO2):
 	'''returns 0'''
 	p50_PnCO2_null = P50(pH, PnCO2, DPG, Temp)
@@ -210,35 +198,67 @@ def alvgas(f, c, r=RER):
 	ag = f*95.05885 - c/r + f*c*(1-r)/r
 	return max(ag, 0.5)
 
-def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, thismaxOER=0.8, thisRER=0.8, thisDPG=0.00465, mode="quiet"):
+def es(	fio2,
+		pao2,
+		paco2,
+		pH,
+		thisHb=8,
+		thisTemp=309.65,
+		thisVO2=0.25,
+		thisQ=6.5,
+		thismaxOER=0.8,
+		thisRER=0.8,
+		thisDPG=0.00465,
+		mode="quiet",
+		QE = 0, # VV ecmo flow
+		peo2 = 15, # VV ecmo return limb PO2
+		):
 	''' standalone function to calculate effective shunt from ABG '''
 	''' inputs are in kPa pH g/dl Celsius l/min lo2/min'''
-	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
+	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
 	calculateglobalvariables(thisTemp, thisHb)
 	p50 = P50(pH, paco2, thisDPG, thisTemp)
 	cao2 = CnO2_0(pao2, p50)
 	pAo2 = alvgas(fio2,paco2,thisRER)
 	cco2 = CnO2_0(pAo2, p50)
 	caco2 = CnCO2_1(pH, paco2, pao2)
-	DO2 = thisQ*cao2*10
-	thisVO2 = min(thisVO2, DO2*thismaxOER)
-	cvo2 = ((DO2-thisVO2)/thisQ)/10
-	cvco2 = ((thisQ*caco2*10 + thisVO2 * thisRER)/thisQ)/10
+	DO2 = thisQ*cao2
+	thisVO2 = min(thisVO2, DO2*thismaxOER) # VO2 can't be greater than DO2
+	if QE>0:
+		# this won't work as well for ECMO because it is highly dependent on the unknown ratio between ecmo flow and cardiac output
+		ceo2 = CnO2_0(peo2, p50)
+		DecmoO2 = QE*ceo2 
+		DvO2 = (thisQ-QE)*(cao2-(thisVO2/thisQ))
+		cvo2 = (DecmoO2+DvO2)/thisQ
+	else:
+		cvo2 = ((DO2-thisVO2)/thisQ)
+	cvco2 = ((thisQ*caco2 + thisVO2 * thisRER)/thisQ)
 	actualOER = (cao2-cvo2)/cao2
 	qsqt = (cao2 - cco2) / (cvo2 - cco2)
 	# sanity checks
-	if False:
+	if mode=="verbose":
 		print ("p50", p50)
 		print ("cao2", cao2)
 		print ("pAo2", pAo2)
 		print ("cco2", cco2)
 		print ("caco2", caco2)
 		print ("DO2", DO2)
+		print ("thisQ", thisQ)
 		print ("thisVO2", thisVO2)
-		print ("cvo2", cvo2)
+		print ("cvo2",
+				cvo2,
+				cao2*(DO2-thisVO2)/DO2,
+				cao2*(cao2*thisQ - thisVO2)/(cao2*thisQ),
+				cao2-(thisVO2/thisQ)
+				)
 		print ("cvco2", cvco2)
 		print ("actualOER", actualOER)
 		print ("qsqt", qsqt)
+		if QE>0:
+			print ("ceo2", ceo2)
+			print ("DecmoO2", DecmoO2)
+			print ("DvO2", DvO2)
+
 	if cao2 > cco2+0.1:
 		return fail('cao2 > cco2', mode=mode)
 	elif qsqt < 0:
@@ -302,7 +322,7 @@ def get_online_inputs(thesevars):  # detect the source of input variables automa
 		print ("Content-Type: text/plain;charset=utf-8")
 		print
 	return onlinevars
-	
+
 def getinputs():
 	variables = get_local_inputs()
 	v =  get_online_inputs(variables)
@@ -408,6 +428,7 @@ if __name__ == "__main__":
 			thisDPG = inputs['DPG'],
 			)
 		print (shunt)
+
 
 
 
