@@ -2,20 +2,21 @@
 # -*- coding: UTF-8 -*-
 
 
-import cgitb, string, math, cgi
-
-#-##############--------------------------------------------------
-
+import cgi
+import cgitb
+import string
 from math import *
 import numpy as np
 from scipy import optimize, integrate
 
+#----------------------------------------------------------------------------
+
 # redefined in es function:
 Q = 5 # l/min
-VO2 = 0.25 # l/min
+VO2 = 0.25 # l/min
 maxOER = 0.8
 RER = 0.8
-DPG = 0.00465 # assumed, doesn't make much difference anyway
+DPG = 0.00465 # assumed, doesn't make much difference anyway
 
 # constant throughout
 MCHC = 340
@@ -68,10 +69,10 @@ def calculateglobalvariables(current_temp, thisHb):
 	Wbl = (1-Hct)*Wpl+Hct*Wrbc # fraction
 	Temp = current_temp
 
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 # Name:		 alpha O2 / CO2
 # Source:	   Dash & Bassingthwaight 2010
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 def alphaO2_func(Temp, Wpl):
 	return 0.1333**-1*(1.37-0.0137*(Temp-310.15)+0.00058*(Temp-310.15)**2)*\
 		(1e-6*Wpl**-1) # M/kPa
@@ -105,7 +106,7 @@ def P50(pH, PnCO2, DPG, Temp):
 def SnO2_0(PnO2, p50_SnO2):
 	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
 	return ((PnO2*p50_SnO2**-1)**(1+n0))/\
-		(1+((PnO2*p50_SnO2**-1)**(1+n0)))	
+		(1+((PnO2*p50_SnO2**-1)**(1+n0)))
 def SnO2_1(PnO2, pH, PnCO2, DPG, Temp): # Equation B.3
 	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
 	return ((PnO2*P50(pH, PnCO2, DPG, Temp)**-1)**(1+n0))/\
@@ -199,8 +200,6 @@ def PnCO2_1(CnCO2, pH, CnO2, PnCO2estimate):
 	PnCO2 = optimize.newton(PnCO2_null,PnCO2estimate,args=args,tol=0.01)
 	return PnCO2 # kPa
 #----------------------------------------------------------------------------
-#----------------------------------------------------------------------------
-#----------------------------------------------------------------------------
 
 def alvgas(f, c, r=RER):
 	ag = f*95.05885 - c/r + f*c*(1-r)/r
@@ -209,7 +208,7 @@ def alvgas(f, c, r=RER):
 def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, thismaxOER=0.8, thisRER=0.8, thisDPG=0.00465, mode="quiet"):
 	''' standalone function to calculate effective shunt from ABG '''
 	''' inputs are in kPa pH g/dl Celsius l/min lo2/min'''
-	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
+	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
 	calculateglobalvariables(thisTemp, thisHb)
 	p50 = P50(pH, paco2, thisDPG, thisTemp)
 	cao2 = CnO2_0(pao2, p50)
@@ -249,7 +248,6 @@ def fail(message, mode="quiet"):
 	elif mode=="quiet":
 		return np.nan
 
-#-------------------------------------
 def get_local_inputs():
 	import traceback
 	import argparse
@@ -281,20 +279,22 @@ def get_online_inputs(thesevars):  # detect the source of input variables automa
 	for v in thesevars:
 		try:
 			float(thesevars[v])
-		except: 
+		except:
 			onlinevars[v] = form.getvalue(v)
 			continue # this doesn't have to be a float. all others must be floatable.
 		try:
 			onlinevars[v] = float(form.getvalue(v))
-			online = True 
+			online = True
 		except:
 			onlinevars[v] = thesevars[v] # default value
 	if online:
 		print ("Access-Control-Allow-Origin: *")
 		print ("Content-Type: text/plain;charset=utf-8")
 		print
-	return onlinevars
-	
+		return onlinevars
+	else:
+		return thesevars
+
 def getinputs():
 	variables = get_local_inputs()
 	try:
@@ -377,7 +377,7 @@ def setunits(value,unit):
 		return value
 	# Error
 	else:
-		print ('Unit conversion error - unit not recognised')
+		print ('Unit conversion error - unit not recognised: {} {}'.format(value, unit))
 
 #-------------------------------------
 if __name__ == "__main__":
