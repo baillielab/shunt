@@ -211,11 +211,14 @@ def es(fio2, pao2, paco2, pH, thisHb=8, thisTemp=309.65, thisVO2=0.25, thisQ=5, 
 	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
 	calculateglobalvariables(thisTemp, thisHb)
 	p50 = P50(pH, paco2, thisDPG, thisTemp)
+	print (pao2, p50)
 	cao2 = CnO2_0(pao2, p50)
+	print (cao2)
 	pAo2 = alvgas(fio2,paco2,thisRER)
 	cco2 = CnO2_0(pAo2, p50)
 	caco2 = CnCO2_1(pH, paco2, pao2)
 	DO2 = thisQ*cao2*10
+	print (DO2)
 	thisVO2 = min(thisVO2, DO2*thismaxOER)
 	cvo2 = ((DO2-thisVO2)/thisQ)/10
 	cvco2 = ((thisQ*caco2*10 + thisVO2 * thisRER)/thisQ)/10
@@ -261,7 +264,7 @@ def get_local_inputs():
 	#below are not yet fully operational - units are not checked
 	parser.add_argument('-acidunit',		default='pH',		help='pH or H')
 	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
-	parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='K') # 36.5 C = 309.65 K
+	parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='deg C') # 36.5 C = 309.65 K
 	parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
 	parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min')
 	parser.add_argument('-maxOER',			default=0.8,		type=float,	help='fraction')
@@ -323,11 +326,11 @@ def setunits(value,unit):
 		return value*0.3048
 	# Temperature
 	elif unit == 'deg C':
-		return value+273.15
-	elif unit == 'deg F':
-		return (5*(value-32)*9**-1)+273.15
-	elif unit =='K':
 		return value
+	elif unit == 'deg F':
+		return (5*(value-32)*9**-1)
+	elif unit =='K':
+		return value-273.15
 	# Concentration
 	elif unit == 'mmol/l':
 		return value*1e-3
@@ -384,7 +387,7 @@ if __name__ == "__main__":
 	import cgi
 	import argparse
 	inputs = getinputs()
-	#print (inputs)
+	print (inputs)
 	shunt = es(
 		fio2 = inputs['fio2'],
 		pao2 = inputs['pao2'],
