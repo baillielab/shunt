@@ -9,9 +9,17 @@ version = 'v0.31' # this is a variable so that it can be returned by -getversion
 #----------------------------------------------------------------------------
 import cgi
 import cgitb
+=======
+
+import cgi
+import cgitb
+import string
+>>>>>>> develop
 from math import *
 import numpy as np
 from scipy import optimize, integrate
+
+#----------------------------------------------------------------------------
 
 # redefined in es function:
 Q = 5 # l/min
@@ -72,10 +80,10 @@ def calculateglobalvariables(current_temp, thisHb):
 	Wbl = (1-Hct)*Wpl+Hct*Wrbc # fraction
 	Temp = current_temp
 
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 # Name:		 alpha O2 / CO2
 # Source:	   Dash & Bassingthwaight 2010
-#------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 def alphaO2_func(Temp, Wpl):
 	return 0.1333**-1*(1.37-0.0137*(Temp-310.15)+0.00058*(Temp-310.15)**2)*\
 		(1e-6*Wpl**-1) # M/kPa
@@ -108,7 +116,16 @@ def P50(pH, PnCO2, DPG, Temp):
 #----------------------------------------------------------------------------
 def SnO2_0(PnO2, p50_SnO2):
 	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
+<<<<<<< HEAD
 	return ((PnO2*p50_SnO2**-1)**(1+n0))/(1+((PnO2*p50_SnO2**-1)**(1+n0)))	
+=======
+	return ((PnO2*p50_SnO2**-1)**(1+n0))/\
+		(1+((PnO2*p50_SnO2**-1)**(1+n0)))
+def SnO2_1(PnO2, pH, PnCO2, DPG, Temp): # Equation B.3
+	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
+	return ((PnO2*P50(pH, PnCO2, DPG, Temp)**-1)**(1+n0))/\
+		(1+((PnO2*P50(pH, PnCO2, DPG, Temp)**-1)**(1+n0)))
+>>>>>>> develop
 def SnO2_2_null(Sats, CnO2, p50_SnO2):
 	'''returns 0 '''
 	return Wbl*alphaO2*p50_SnO2*(Sats*(1-Sats)**-1)**((1+n0)**-1) + \
@@ -191,8 +208,6 @@ def PnCO2_1(CnCO2, pH, CnO2, PnCO2estimate):
 	PnCO2 = optimize.newton(PnCO2_null,PnCO2estimate,args=args,tol=0.01)
 	return PnCO2 # kPa
 #----------------------------------------------------------------------------
-#----------------------------------------------------------------------------
-#----------------------------------------------------------------------------
 
 def alvgas(f, c, r=RER):
 	ag = f*95.05885 - c/r + f*c*(1-r)/r
@@ -218,10 +233,13 @@ def es(	fio2,
 	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
 	calculateglobalvariables(thisTemp, thisHb)
 	p50 = P50(pH, paco2, thisDPG, thisTemp)
+	print (pao2, p50)
 	cao2 = CnO2_0(pao2, p50)
+	print (cao2)
 	pAo2 = alvgas(fio2,paco2,thisRER)
 	cco2 = CnO2_0(pAo2, p50)
 	caco2 = CnCO2_1(pH, paco2, pao2)
+<<<<<<< HEAD
 	DO2 = thisQ*cao2
 	thisVO2 = min(thisVO2, DO2*thismaxOER) # VO2 can't be greater than DO2
 	if QE>0:
@@ -233,6 +251,13 @@ def es(	fio2,
 	else:
 		cvo2 = ((DO2-thisVO2)/thisQ)
 	cvco2 = ((thisQ*caco2 + thisVO2 * thisRER)/thisQ)
+=======
+	DO2 = thisQ*cao2*10
+	print (DO2)
+	thisVO2 = min(thisVO2, DO2*thismaxOER)
+	cvo2 = ((DO2-thisVO2)/thisQ)/10
+	cvco2 = ((thisQ*caco2*10 + thisVO2 * thisRER)/thisQ)/10
+>>>>>>> develop
 	actualOER = (cao2-cvo2)/cao2
 	qsqt = (cao2 - cco2) / (cvo2 - cco2)
 	# sanity checks
@@ -273,7 +298,6 @@ def fail(message, mode="quiet"):
 	elif mode=="quiet":
 		return np.nan
 
-#-------------------------------------
 def get_local_inputs():
 	import traceback
 	import argparse
@@ -289,7 +313,7 @@ def get_local_inputs():
 	#below are not yet fully operational - units are not checked
 	parser.add_argument('-acidunit',		default='pH',		help='pH or H')
 	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
-	parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='K') # 36.5 C = 309.65 K
+	parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='deg C') # 36.5 C = 309.65 K
 	parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
 	parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min')
 	parser.add_argument('-maxOER',			default=0.8,		type=float,	help='fraction')
@@ -305,6 +329,7 @@ def get_online_inputs(thesevars):  # detect the source of input variables automa
 	onlinevars = {}
 	for v in thesevars:
 		try:
+<<<<<<< HEAD
 			float(thesevars[v]) # if this fails, this one doesn't have to be a float.
 		except: 
 			newvar = form.getvalue(v)
@@ -315,13 +340,28 @@ def get_online_inputs(thesevars):  # detect the source of input variables automa
 				onlinevars[v] = thesevars[v] # default value
 		try:
 			onlinevars[v] = float(form.getvalue(v))
+=======
+			float(thesevars[v])
+		except:
+			onlinevars[v] = form.getvalue(v)
+			continue # this doesn't have to be a float. all others must be floatable.
+		try:
+			onlinevars[v] = float(form.getvalue(v))
+			online = True
+>>>>>>> develop
 		except:
 			onlinevars[v] = thesevars[v] # default value
 	if onlinevars['online']=='yes':
 		print (accesscontrol)
 		print ("Content-Type: text/plain;charset=utf-8")
 		print
+<<<<<<< HEAD
 	return onlinevars
+=======
+		return onlinevars
+	else:
+		return thesevars
+>>>>>>> develop
 
 def getinputs():
 	variables = get_local_inputs()
@@ -350,11 +390,11 @@ def setunits(value,unit):
 		return value*0.3048
 	# Temperature
 	elif unit == 'deg C':
-		return value+273.15
-	elif unit == 'deg F':
-		return (5*(value-32)*9**-1)+273.15
-	elif unit =='K':
 		return value
+	elif unit == 'deg F':
+		return (5*(value-32)*9**-1)
+	elif unit =='K':
+		return value-273.15
 	# Concentration
 	elif unit == 'mmol/l':
 		return value*1e-3
@@ -404,13 +444,18 @@ def setunits(value,unit):
 		return value
 	# Error
 	else:
+<<<<<<< HEAD
 		print ('Unit conversion error - unit not recognised. Value: {} Unit: {}'.format(value, unit))
+=======
+		print ('Unit conversion error - unit not recognised: {} {}'.format(value, unit))
+>>>>>>> develop
 
 #-------------------------------------
 if __name__ == "__main__":
 	import cgi
 	import argparse
 	inputs = getinputs()
+<<<<<<< HEAD
 	if inputs['getversion']=='yes':
 		print (version)
 	else:
@@ -428,6 +473,24 @@ if __name__ == "__main__":
 			thisDPG = inputs['DPG'],
 			)
 		print (shunt)
+=======
+	print (inputs)
+	shunt = es(
+		fio2 = inputs['fio2'],
+		pao2 = inputs['pao2'],
+		paco2 = inputs['paco2'],
+		pH = inputs['pH'],
+		thisHb = inputs['Hb'],
+		thisTemp = inputs['Temp'],
+		thisVO2 = inputs['VO2'],
+		thisQ = inputs['Q'],
+		thismaxOER = inputs['maxOER'],
+		thisRER = inputs['RER'],
+		thisDPG = inputs['DPG'],
+		)
+	print (shunt)
+
+>>>>>>> develop
 
 
 
