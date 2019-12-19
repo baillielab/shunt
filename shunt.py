@@ -213,7 +213,7 @@ def es(	fio2,
 		thismaxOER=0.8,
 		thisRER=0.8,
 		thisDPG=0.00465,
-		mode="quiet",
+		mode="graceful",
 		QE = 0, # VV ecmo flow
 		peo2 = 15, # VV ecmo return limb PO2
 		):
@@ -222,9 +222,7 @@ def es(	fio2,
 	thisVO2 = thisVO2*1000 # convert VO2 to mls/min here
 	calculateglobalvariables(thisTemp, thisHb)
 	p50 = P50(pH, paco2, thisDPG, thisTemp)
-	print (pao2, p50)
 	cao2 = CnO2_0(pao2, p50)
-	print (cao2)
 	pAo2 = alvgas(fio2,paco2,thisRER)
 	cco2 = CnO2_0(pAo2, p50)
 	caco2 = CnCO2_1(pH, paco2, pao2)
@@ -279,7 +277,9 @@ def fail(message, mode="graceful"):
 	elif mode=="quiet":
 		return np.nan
 	elif mode=="graceful":
-		if message == 'qsqt < 0':
+		if message == 'cao2 > cco2':
+			return 0
+		elif message == 'qsqt < 0':
 			return 0
 		elif message == 'qsqt > 1':
 			return 1
@@ -295,8 +295,8 @@ def get_local_inputs():
 	parser.add_argument('-gasunit',			default='kPa',		type=str, 	help='kPa or mmHg', choices=['kPa','mmHg'])
 	parser.add_argument('-getversion',		default='no',		type=str, 	help='yes or no', choices=['yes','no'])
 	parser.add_argument('-online',			default='no',		type=str, 	help='yes or no', choices=['yes','no'])
-	parser.add_argument('-Temp',	 		default=36.5,		type=float,	help='deg C') # 36.5 C = 309.65 K
-	parser.add_argument('-tempunit',		default='deg C',	type=str, 	help='deg C or deg F or K', choices=['deg C','deg F', 'K'])
+	parser.add_argument('-Temp',	 		default=36.5,		type=float,	help='temp in degrees C') # 36.5 C = 309.65 K
+	parser.add_argument('-tempunit',		default='C',	type=str, 	help='C or F or K', choices=['C','F', 'K'])
 	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
 	#-----
 	#below are not yet fully operational - units are not checked
@@ -362,9 +362,9 @@ def setunits(value,unit):
 	elif unit == 'ft':
 		return value*0.3048
 	# Temperature
-	elif unit == 'deg C':
+	elif unit == 'C':
 		return value+273.15
-	elif unit == 'deg F':
+	elif unit == 'F':
 		return (5*(value-32)*9**-1)+273.15
 	elif unit =='K':
 		return value
@@ -427,7 +427,6 @@ if __name__ == "__main__":
 	if inputs['getversion']=='yes':
 		print (version)
 	else:
-		print (inputs)
 		shunt = es(
 			fio2 = inputs['fio2'],
 			pao2 = inputs['pao2'],
