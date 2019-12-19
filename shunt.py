@@ -5,16 +5,10 @@
 # AUTHORS: J.K. Baillie and A Bretherick
 # LICENSE: CC-BY-NC
 # GUARANTEE: This code is provided as is and has no guarantee.
-version = 'v0.31' # this is a variable so that it can be returned by -getversion. It should be a string prefixed by 'v' so that it doesn't get confused with an es result.
+version = 'v0.32' # this is a variable so that it can be returned by -getversion. It should be a string prefixed by 'v' so that it doesn't get confused with an es result.
 #----------------------------------------------------------------------------
 import cgi
 import cgitb
-=======
-
-import cgi
-import cgitb
-import string
->>>>>>> develop
 from math import *
 import numpy as np
 from scipy import optimize, integrate
@@ -116,16 +110,11 @@ def P50(pH, PnCO2, DPG, Temp):
 #----------------------------------------------------------------------------
 def SnO2_0(PnO2, p50_SnO2):
 	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
-<<<<<<< HEAD
-	return ((PnO2*p50_SnO2**-1)**(1+n0))/(1+((PnO2*p50_SnO2**-1)**(1+n0)))	
-=======
-	return ((PnO2*p50_SnO2**-1)**(1+n0))/\
-		(1+((PnO2*p50_SnO2**-1)**(1+n0)))
+	return ((PnO2*p50_SnO2**-1)**(1+n0))/(1+((PnO2*p50_SnO2**-1)**(1+n0)))
 def SnO2_1(PnO2, pH, PnCO2, DPG, Temp): # Equation B.3
 	'''Calculate O2 SATURATION from PARTIAL PRESSURE''' # fraction
 	return ((PnO2*P50(pH, PnCO2, DPG, Temp)**-1)**(1+n0))/\
 		(1+((PnO2*P50(pH, PnCO2, DPG, Temp)**-1)**(1+n0)))
->>>>>>> develop
 def SnO2_2_null(Sats, CnO2, p50_SnO2):
 	'''returns 0 '''
 	return Wbl*alphaO2*p50_SnO2*(Sats*(1-Sats)**-1)**((1+n0)**-1) + \
@@ -239,25 +228,17 @@ def es(	fio2,
 	pAo2 = alvgas(fio2,paco2,thisRER)
 	cco2 = CnO2_0(pAo2, p50)
 	caco2 = CnCO2_1(pH, paco2, pao2)
-<<<<<<< HEAD
 	DO2 = thisQ*cao2
 	thisVO2 = min(thisVO2, DO2*thismaxOER) # VO2 can't be greater than DO2
 	if QE>0:
 		# this won't work as well for ECMO because it is highly dependent on the unknown ratio between ecmo flow and cardiac output
 		ceo2 = CnO2_0(peo2, p50)
-		DecmoO2 = QE*ceo2 
+		DecmoO2 = QE*ceo2
 		DvO2 = (thisQ-QE)*(cao2-(thisVO2/thisQ))
 		cvo2 = (DecmoO2+DvO2)/thisQ
 	else:
 		cvo2 = ((DO2-thisVO2)/thisQ)
 	cvco2 = ((thisQ*caco2 + thisVO2 * thisRER)/thisQ)
-=======
-	DO2 = thisQ*cao2*10
-	print (DO2)
-	thisVO2 = min(thisVO2, DO2*thismaxOER)
-	cvo2 = ((DO2-thisVO2)/thisQ)/10
-	cvco2 = ((thisQ*caco2*10 + thisVO2 * thisRER)/thisQ)/10
->>>>>>> develop
 	actualOER = (cao2-cvo2)/cao2
 	qsqt = (cao2 - cco2) / (cvo2 - cco2)
 	# sanity checks
@@ -292,11 +273,16 @@ def es(	fio2,
 		return fail('qsqt > 1', mode=mode)
 	return qsqt
 
-def fail(message, mode="quiet"):
+def fail(message, mode="graceful"):
 	if mode=="verbose":
 		return "Failed {}".format(message)
 	elif mode=="quiet":
 		return np.nan
+	elif mode=="graceful":
+		if message == 'qsqt < 0':
+			return 0
+		elif message == 'qsqt > 1':
+			return 1
 
 def get_local_inputs():
 	import traceback
@@ -309,16 +295,17 @@ def get_local_inputs():
 	parser.add_argument('-gasunit',			default='kPa',		type=str, 	help='kPa or mmHg', choices=['kPa','mmHg'])
 	parser.add_argument('-getversion',		default='no',		type=str, 	help='yes or no', choices=['yes','no'])
 	parser.add_argument('-online',			default='no',		type=str, 	help='yes or no', choices=['yes','no'])
+	parser.add_argument('-Temp',	 		default=36.5,		type=float,	help='deg C') # 36.5 C = 309.65 K
+	parser.add_argument('-tempunit',		default='deg C',	type=str, 	help='deg C or deg F or K', choices=['deg C','deg F', 'K'])
+	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
 	#-----
 	#below are not yet fully operational - units are not checked
-	parser.add_argument('-acidunit',		default='pH',		help='pH or H')
-	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
-	parser.add_argument('-Temp',	 		default=309.65,		type=float,	help='deg C') # 36.5 C = 309.65 K
-	parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min')
-	parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min')
-	parser.add_argument('-maxOER',			default=0.8,		type=float,	help='fraction')
-	parser.add_argument('-DPG',				default=0.00465,	type=float,	help='M')
-	parser.add_argument('-RER',				default=0.8,		type=float,	help='fraction')
+	#parser.add_argument('-acidunit',		default='pH',		help='pH or H')
+	parser.add_argument('-VO2',				default=0.25,		type=float,	help='l/min ** editing not recommended **')
+	parser.add_argument('-Q',				default=6.5,		type=float,	help='l/min ** editing not recommended **')
+	parser.add_argument('-maxOER',			default=0.8,		type=float,	help='fraction ** editing not recommended **')
+	parser.add_argument('-DPG',				default=0.00465,	type=float,	help='M ** editing not recommended **')
+	parser.add_argument('-RER',				default=0.8,		type=float,	help='fraction ** editing not recommended **')
 	parser.set_defaults()
 	args = parser.parse_args()
 	localvars = vars(args)
@@ -329,39 +316,23 @@ def get_online_inputs(thesevars):  # detect the source of input variables automa
 	onlinevars = {}
 	for v in thesevars:
 		try:
-<<<<<<< HEAD
 			float(thesevars[v]) # if this fails, this one doesn't have to be a float.
-		except: 
+		except:
 			newvar = form.getvalue(v)
 			if newvar is not None:
 				onlinevars[v] = newvar
-				continue 
+				continue
 			else:
 				onlinevars[v] = thesevars[v] # default value
 		try:
 			onlinevars[v] = float(form.getvalue(v))
-=======
-			float(thesevars[v])
-		except:
-			onlinevars[v] = form.getvalue(v)
-			continue # this doesn't have to be a float. all others must be floatable.
-		try:
-			onlinevars[v] = float(form.getvalue(v))
-			online = True
->>>>>>> develop
 		except:
 			onlinevars[v] = thesevars[v] # default value
 	if onlinevars['online']=='yes':
 		print (accesscontrol)
 		print ("Content-Type: text/plain;charset=utf-8")
 		print
-<<<<<<< HEAD
 	return onlinevars
-=======
-		return onlinevars
-	else:
-		return thesevars
->>>>>>> develop
 
 def getinputs():
 	variables = get_local_inputs()
@@ -371,6 +342,8 @@ def getinputs():
 	if variables['gasunit'] != 'kPa':
 		for gasmeasure in ['pao2', 'paco2']:
 			variables[gasmeasure] = setunits(variables[gasmeasure], variables['gasunit'])
+	if variables['tempunit'] != 'K':
+		variables['Temp'] = setunits(variables['Temp'], variables['tempunit'])
 	return variables
 
 def setunits(value,unit):
@@ -390,11 +363,11 @@ def setunits(value,unit):
 		return value*0.3048
 	# Temperature
 	elif unit == 'deg C':
-		return value
+		return value+273.15
 	elif unit == 'deg F':
-		return (5*(value-32)*9**-1)
+		return (5*(value-32)*9**-1)+273.15
 	elif unit =='K':
-		return value-273.15
+		return value
 	# Concentration
 	elif unit == 'mmol/l':
 		return value*1e-3
@@ -444,21 +417,17 @@ def setunits(value,unit):
 		return value
 	# Error
 	else:
-<<<<<<< HEAD
 		print ('Unit conversion error - unit not recognised. Value: {} Unit: {}'.format(value, unit))
-=======
-		print ('Unit conversion error - unit not recognised: {} {}'.format(value, unit))
->>>>>>> develop
 
 #-------------------------------------
 if __name__ == "__main__":
 	import cgi
 	import argparse
 	inputs = getinputs()
-<<<<<<< HEAD
 	if inputs['getversion']=='yes':
 		print (version)
 	else:
+		print (inputs)
 		shunt = es(
 			fio2 = inputs['fio2'],
 			pao2 = inputs['pao2'],
@@ -473,24 +442,7 @@ if __name__ == "__main__":
 			thisDPG = inputs['DPG'],
 			)
 		print (shunt)
-=======
-	print (inputs)
-	shunt = es(
-		fio2 = inputs['fio2'],
-		pao2 = inputs['pao2'],
-		paco2 = inputs['paco2'],
-		pH = inputs['pH'],
-		thisHb = inputs['Hb'],
-		thisTemp = inputs['Temp'],
-		thisVO2 = inputs['VO2'],
-		thisQ = inputs['Q'],
-		thismaxOER = inputs['maxOER'],
-		thisRER = inputs['RER'],
-		thisDPG = inputs['DPG'],
-		)
-	print (shunt)
 
->>>>>>> develop
 
 
 
