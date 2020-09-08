@@ -1,20 +1,26 @@
-#!/usr/bin/env python3
+#!/conda/anaconda3/bin/python
 # -*- coding: UTF-8 -*-
-
 #----------------------------------------------------------------------------
 # AUTHORS: J.K. Baillie and A Bretherick
 # LICENSE: CC-BY-NC
 # GUARANTEE: This code is provided as is and has no guarantee.
 version = 'v0.33' # this is a variable so that it can be returned by -getversion. It should be a string prefixed by 'v' so that it doesn't get confused with an es result.
 #----------------------------------------------------------------------------
-import cgi
-import cgitb
+accesscontrol = "Access-Control-Allow-Origin: *" # control access to this script for online use
+#----------------------------------------------------------------------------
+onlinedebugging = False
+if onlinedebugging:
+	import cgitb
+	cgitb.enable()
+	print ("Content-type: text/plain")
+	print (accesscontrol)
+	print ("")
+#----------------------------------------------------------------------------
 from math import *
+import cgi
 import numpy as np
 from scipy import optimize, integrate
-
 #----------------------------------------------------------------------------
-
 # redefined in es function:
 Q = 5 # l/min
 VO2 = 0.25 # l/min
@@ -24,8 +30,6 @@ DPG = 0.00465 # assumed, doesn't make much difference anyway
 
 # constant throughout
 MCHC = 340
-
-accesscontrol = "Access-Control-Allow-Origin: *" # control access to this script for online use
 #----------------------------------------------------------------------------
 # Name:		Input Constants
 #----------------------------------------------------------------------------
@@ -355,9 +359,9 @@ def get_online_inputs(thesevars):  # detect the source of input variables automa
 		except:
 			onlinevars[v] = thesevars[v] # default value
 	if onlinevars['online']=='yes':
-		print (accesscontrol)
 		print ("Content-Type: text/plain;charset=utf-8")
-		print
+		print (accesscontrol)
+		print ("")
 	return onlinevars
 
 def getinputs():
