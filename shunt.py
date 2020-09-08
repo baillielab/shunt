@@ -5,7 +5,7 @@
 # AUTHORS: J.K. Baillie and A Bretherick
 # LICENSE: CC-BY-NC
 # GUARANTEE: This code is provided as is and has no guarantee.
-version = 'v0.32' # this is a variable so that it can be returned by -getversion. It should be a string prefixed by 'v' so that it doesn't get confused with an es result.
+version = 'v0.33' # this is a variable so that it can be returned by -getversion. It should be a string prefixed by 'v' so that it doesn't get confused with an es result.
 #----------------------------------------------------------------------------
 import cgi
 import cgitb
@@ -196,10 +196,33 @@ def PnCO2_1(CnCO2, pH, CnO2, PnCO2estimate):
 	args = CnCO2,pH,CnO2
 	PnCO2 = optimize.newton(PnCO2_null,PnCO2estimate,args=args,tol=0.01)
 	return PnCO2 # kPa
+#------------------------------------------------------------------------
+# Name:         Atmospheric pressure (kPa) from altitude (m)
+# Source:    West 1996
+#------------------------------------------------------------------------
+def Pbar(alt):
+	return exp(6.63268-0.1112*(alt*1e-3)-0.00149*(alt*1e-3)**2)*0.1333 # kPa
+#------------------------------------------------------------------------
+# Name:         Saturated vapour pressure of water (kPa)
+# Source:       Wagner & Pruss 1993
+#------------------------------------------------------------------------
+def pio2(fio2, alt, Temp):
+	Temp_critical = 647.096 # K
+	Pres_critical = 22.064e3 # kPa
+	a1 = -7.85951783
+	a2 = 1.84408259
+	a3 = -11.7866497
+	a4 = 22.6807411
+	a5 = -15.9618719
+	a6 = 1.80122502
+	tau = 1 - Temp*Temp_critical**-1 # fraction
+	PH2O = Pres_critical*e**(Temp_critical*Temp**-1*(a1*tau+a2*tau**1.5+a3*\
+	    tau**3+a4*tau**3.5+a5*tau**4+a6*tau**7)) # kPa
+	return fio2*(Pbar(alt)-PH2O) # kPa
 #----------------------------------------------------------------------------
 
-def alvgas(f, c, r=RER):
-	ag = f*95.05885 - c/r + f*c*(1-r)/r
+def alvgas(f, c, a, t, r=RER):
+	ag = pio2(f,a,t) - c/r + f*c*(1-r)/r
 	return max(ag, 0.5)
 
 def es(	fio2,
@@ -213,7 +236,9 @@ def es(	fio2,
 		thismaxOER=0.8,
 		thisRER=0.8,
 		thisDPG=0.00465,
-		mode="graceful",
+		#mode="graceful",
+		thisAltitude=0,
+		mode="quiet",
 		QE = 0, # VV ecmo flow
 		peo2 = 15, # VV ecmo return limb PO2
 		):
@@ -223,7 +248,7 @@ def es(	fio2,
 	calculateglobalvariables(thisTemp, thisHb)
 	p50 = P50(pH, paco2, thisDPG, thisTemp)
 	cao2 = CnO2_0(pao2, p50)
-	pAo2 = alvgas(fio2,paco2,thisRER)
+	pAo2 = alvgas(f=fio2, c=paco2, a=thisAltitude, t=thisTemp, r=thisRER)
 	cco2 = CnO2_0(pAo2, p50)
 	caco2 = CnCO2_1(pH, paco2, pao2)
 	DO2 = thisQ*cao2
@@ -298,6 +323,7 @@ def get_local_inputs():
 	parser.add_argument('-Temp',	 		default=36.5,		type=float,	help='temp in degrees C') # 36.5 C = 309.65 K
 	parser.add_argument('-tempunit',		default='C',	type=str, 	help='C or F or K', choices=['C','F', 'K'])
 	parser.add_argument('-Hb',				default=80,			type=float,	help='g/l')
+	parser.add_argument('-altitude',		default=0,			type=float,	help='m')
 	#-----
 	#below are not yet fully operational - units are not checked
 	#parser.add_argument('-acidunit',		default='pH',		help='pH or H')
@@ -439,6 +465,7 @@ if __name__ == "__main__":
 			thismaxOER = inputs['maxOER'],
 			thisRER = inputs['RER'],
 			thisDPG = inputs['DPG'],
+			thisAltitude = inputs['altitude'],
 			)
 		print (shunt)
 
